@@ -61,7 +61,7 @@ def getAverage(timeDiffsList, trip_time, currClients):
 	while x < len(timeDiffsList):
 		timeDiffsList[x] -= trip_time
 		average += timeDiffsList[x]
-		print("D", x, "\'' = ", timeDiffsList[x], sep = '')
+		print("D", x, "\' = ", timeDiffsList[x], sep = '')
 		x += 1
 
 	#for x in timeDiffsList[1:]:
@@ -164,11 +164,12 @@ if __name__ == '__main__':
 		# Ajusta el reloj del servidor		
 		server_clock_final = dt.now()
 		time_delta_f = tdel(seconds = averageDiff)
-		print("La hora ajustada es: ", (server_clock_final + time_delta_f))
+		print("La hora antes del ajuste es:", (server_clock_final))
+		print("La hora ajustada es:", (server_clock_final + time_delta_f))
 
 		# Envía el promedio de cada cliente
 		sendAverage(timeDiffsList, averageDiff, clientDic)
 
+		print("La hora tras el RTT del envío a los clientes, aún ajustada:", (server_clock_final + time_delta_f + tdel(seconds = trip_time)))
+
 		time.sleep(5)
-
-
