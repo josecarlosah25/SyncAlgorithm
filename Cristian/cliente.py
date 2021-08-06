@@ -1,5 +1,6 @@
 import time
 import zmq
+import random
 
 context = zmq.Context()
 
@@ -17,8 +18,8 @@ while True:
 	#Tomamos el tiempo mr
 	mr=time.time()
 
-	#Modificamos este valor de forma "demostrativa" y comprobar el funcionamiento del algoritmo"
-	prueba=10+(mr*.01)
+	#Modificamos este valor de forma "demostrativa" y comprobar el funcionamiento del algoritmo
+	prueba=random.randint(-5,12)
 	mr=mr+prueba
 	
 
