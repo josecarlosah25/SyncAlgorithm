@@ -11,32 +11,26 @@ import copy
 import struct
 
 noClients = 0
+maxDif = 10
 
 # Monitor que cuenta a los clientes
 def serverMonitor(monitor):
 	global noClients
 	EVENT_MAP = {}
-	#print("Event names:")
 	for name in dir(zmq):
 	    if name.startswith('EVENT_'):
 	        value = getattr(zmq, name)
-	        #print("%21s : %4i" % (name, value))
 	        EVENT_MAP[value] = name
 
 	while monitor.poll():
 		event = recv_monitor_message(monitor)
 		event.update({'description': EVENT_MAP[event['event']]})
-		#print("Event: {}".format(event))
 		if event['event'] == zmq.EVENT_MONITOR_STOPPED:
 			break
 		if event['event'] == zmq.EVENT_ACCEPTED:
 			noClients  += 1
-			#print("Cliente conectado.\n")
-			#print("No. de clientes: ", noClients)
 		elif event['event'] == zmq.EVENT_DISCONNECTED:
 			noClients -=1
-			#print("Cliente desconectado.\n")
-			#print("No. de clientes: ", noClients)
 
 def receiveClientTimes(timeDiffsList, currClients, clientDic):
 	x = 0
@@ -44,48 +38,39 @@ def receiveClientTimes(timeDiffsList, currClients, clientDic):
 		if noClients == 0:
 			break
 		print("Esperando respuesta...")
-		#timeDiff_str = server.recv_string() # para REP
 		timeDiff_lst = server.recv_multipart()
-		#print("Respuesta recibida: ", timeDiff_lst)
-		#timeDiff = float(timeDiff_str)
 		timeDiff = float(timeDiff_lst[1].decode())
 		# Guarda la identidad del cliente como clave y la diferencia (D1, D2, D3...) como valor
 		clientDic[timeDiff_lst[0]] = timeDiff
-		#print("Diccionario de clientes y su diferencia de tiempo: ", clientDic)
 		timeDiffsList.append(timeDiff)
 		x += 1
 
 def getAverage(timeDiffsList, trip_time, currClients):
+	global maxDif
 	x = 1
+	finalClients = 0 + currClients
 	average = 0
 	while x < len(timeDiffsList):
+		# Descarte de relojes con desfase muy grande
+		if abs(timeDiffsList[x]) > maxDif:
+			finalClients -= 1
+			print("No se toma en cuenta D", x, " = ", timeDiffsList[x], " para obtener D, por alejarse mucho.", sep='')
 		timeDiffsList[x] -= trip_time
-		average += timeDiffsList[x]
+		if abs(timeDiffsList[x]) <= maxDif:
+			average += timeDiffsList[x]
 		print("D", x, "\' = ", timeDiffsList[x], sep = '')
 		x += 1
 
-	#for x in timeDiffsList[1:]:
-	#	average += x - trip_time
-	#	print(x, average)
-
-	average = average / (currClients + 1)
+	average = average / (finalClients + 1)
 	return average
 
 def sendAverage(timeDiffsList, averageDiff, clientDic):
 	x = len(timeDiffsList) - 1
-	#while x < len(timeDiffsList):
-	#	timeDiffsList[x] = averageDiff - timeDiffsList[x]
-	#	x += 1
-	#print("Ajustes: ", timeDiffsList)
-	#for diff in timeDiffsList[1:]:
-	#	individualAvrg = diff
-	#	print("Ajuste enviado: ", individualAvrg)
-	#	server.send_string(str(individualAvrg))
 	while len(clientDic) > 0:
 		client_diff = clientDic.popitem()
 		individualAvrg = averageDiff - timeDiffsList[x]
 		x -= 1
-		#print("Cliente:", client_diff[0], "\tAjuste:", individualAvrg)
+		#print("Cliente:", client_diff[0], "Ajuste:", individualAvrg)
 		print("\tAjuste:", individualAvrg)
 		server.send_multipart([client_diff[0], struct.pack('f', individualAvrg)])
 
@@ -160,7 +145,7 @@ if __name__ == '__main__':
 
 		# Obtiene el promedio
 		averageDiff = getAverage(timeDiffsList, trip_time, currClients)
-		print("Promedio: ", averageDiff)
+		print("Promedio (D): ", averageDiff)
 		
 		# Ajusta el reloj del servidor		
 		server_clock_final = dt.now()
